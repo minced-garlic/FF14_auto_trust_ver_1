@@ -16,37 +16,40 @@ class get_data_from_key:
     def start(self):
         if not self.on:
             i=0
-            while os.path.isfile("./data/data_" + str('{0:03d}'.format(i)) + ".txt"):i += 1
-            self.data_file_txt = "./data/data_" + str('{0:03d}'.format(i)) + ".txt"
+            while os.path.isfile("./data/data_" + str('{0:03d}'.format(i))):i += 1
+            self.data_file_txt = "./data/data_" + str('{0:03d}'.format(i))
             self.line = np.zeros(14)
             self.on=True
 
     def end(self):
-        if self.on:
-            np.savetxt(self.data_file_txt,self.line)
-            self.on=False
+        if self.on: self.on=False
 
     def on_press(self, key):
-        if key == Key.up:         self.line[10] = 1
-        elif key == Key.down:       self.line[11] = 1
-        elif key == Key.left:       self.line[12] = 1
-        elif key == Key.right:      self.line[13] = 1
-        elif key.char== 's':          self.start()
-        elif key.char== 'e':        self.end()
-        elif key.char in '1234567890':
-            self.line[int(key.char) - 1] = 1
-        print(self.line)
+        if self.on:
+            if key == Key.up:               self.line[10] = 1
+            elif key == Key.down:           self.line[11] = 1
+            elif key == Key.left:           self.line[12] = 1
+            elif key == Key.right:          self.line[13] = 1
+            elif key.char== 'e':            self.end()
+            elif key.char in '1234567890':  self.line[int(key.char) - 1] = 1
+            print(self.line)
+            ori_txt=np.load(self.data_file_txt)
+            ori_txt=np.concat([ori_txt, self.line], axis = 0)
+            np.save(self.data_file_txt,ori_txt)
+        else:
+            try:
+                if key.char== 's':                self.start()
+            except:
+                print('it is not a start key!')
 
     def on_release(self, key):
-        if key == Key.up:           self.line[10] = 0
-        elif key == Key.down:       self.line[11] = 0
-        elif key == Key.left:       self.line[12] = 0
-        elif key == Key.right:      self.line[13] = 0
-        elif key.char in '1234567890':
-            self.line[int(key.char) - 1] = 0
-
-
-
+        if self.on:
+            if key == Key.up:           self.line[10] = 0
+            elif key == Key.down:       self.line[11] = 0
+            elif key == Key.left:       self.line[12] = 0
+            elif key == Key.right:      self.line[13] = 0
+            elif key.char in '1234567890':
+                self.line[int(key.char) - 1] = 0
 
 
 if __name__ == '__main__':
