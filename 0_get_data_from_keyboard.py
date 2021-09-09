@@ -5,7 +5,7 @@ import numpy as np
 class get_data_from_key:
     def __init__(self):
         self.keys = set()
-        self.line = np.zeros(14)
+        self.line = np.zeros(14, dtype=np.int32)
         self.on = False
         with Listener(
                 on_press=self.on_press,
@@ -16,8 +16,8 @@ class get_data_from_key:
     def start(self):
         if not self.on:
             i=0
-            while os.path.isfile("./data/data_" + str('{0:03d}'.format(i))+'.npy'):i += 1
-            self.data_file_txt = "./data/data_" + str('{0:03d}'.format(i))+'.npy'
+            while os.path.isfile("./raw data/data_" + str('{0:03d}'.format(i))+'.npy'):i += 1
+            self.data_file_txt = "./raw data/data_" + str('{0:03d}'.format(i))+'.npy'
             print('start the save!')
             self.line = np.zeros(14)
             np.save(self.data_file_txt,np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 'u', 'd', 'r', 'l']))
@@ -33,10 +33,12 @@ class get_data_from_key:
             elif key == Key.left:           self.line[12] = 1
             elif key == Key.right:          self.line[13] = 1
             elif key.char== 'e':            self.end()
-            elif key.char in '1234567890':  self.line[int(key.char) - 1] = 1
-            print(self.line)
+            elif key.char in '123456789':   self.line[int(key.char) - 1] = 1
+            elif key.char in '0':           self.line[9] = 1
             ori_txt=np.load(self.data_file_txt)
-            ori_txt=np.vstack((ori_txt, self.line))
+            sumof= int(np.sum([2**i*self.line[i] for i in range(14)]))
+            print('{0:014b}'.format(sumof))
+            ori_txt=np.hstack((ori_txt, sumof))
             np.save(self.data_file_txt,ori_txt)
         else:
             try:
@@ -46,15 +48,15 @@ class get_data_from_key:
 
     def on_release(self, key):
         if self.on:
-            if key == Key.up:           self.line[10] = 0
-            elif key == Key.down:       self.line[11] = 0
-            elif key == Key.left:       self.line[12] = 0
-            elif key == Key.right:      self.line[13] = 0
-            elif key.char in '1234567890':
-                self.line[int(key.char) - 1] = 0
+            if key == Key.up:               self.line[10] = 0
+            elif key == Key.down:           self.line[11] = 0
+            elif key == Key.left:           self.line[12] = 0
+            elif key == Key.right:          self.line[13] = 0
+            elif key.char in '0':           self.line[9] = 0
+            elif key.char in '123456789':   self.line[int(key.char) - 1] = 0
 
 
 if __name__ == '__main__':
     #print("start of data.")
-    print('[1 2 3 4 5 6 7 8 9 0 u d r l]')
+    print('1 2 3 4 5 6 7 8 9 0 u d r l')
     get_data_from_key()
