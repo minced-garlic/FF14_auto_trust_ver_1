@@ -16,9 +16,11 @@ class get_data_from_key:
     def start(self):
         if not self.on:
             i=0
-            while os.path.isfile("./data/data_" + str('{0:03d}'.format(i))):i += 1
-            self.data_file_txt = "./data/data_" + str('{0:03d}'.format(i))
+            while os.path.isfile("./data/data_" + str('{0:03d}'.format(i))+'.npy'):i += 1
+            self.data_file_txt = "./data/data_" + str('{0:03d}'.format(i))+'.npy'
+            print('start the save!')
             self.line = np.zeros(14)
+            np.save(self.data_file_txt,np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 'u', 'd', 'r', 'l']))
             self.on=True
 
     def end(self):
@@ -34,7 +36,7 @@ class get_data_from_key:
             elif key.char in '1234567890':  self.line[int(key.char) - 1] = 1
             print(self.line)
             ori_txt=np.load(self.data_file_txt)
-            ori_txt=np.concat([ori_txt, self.line], axis = 0)
+            ori_txt=np.vstack((ori_txt, self.line))
             np.save(self.data_file_txt,ori_txt)
         else:
             try:
