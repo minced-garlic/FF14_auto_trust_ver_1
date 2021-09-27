@@ -27,15 +27,12 @@ flags = tf.flags
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("input_file", "./X_train.npy",
+flags.DEFINE_string("input_file", './X_train.npy',
                     "Input raw text file (or comma-separated list of files).")
 
 flags.DEFINE_string(
-    "output_file", "./Y_train.npy",
+    "output_file", './Y_train.npy',
     "Output TF example file (or comma-separated list of files).")
-
-#flags.DEFINE_string("vocab_file", None,
-#                    "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_bool(
     "do_lower_case", True,
@@ -78,64 +75,73 @@ class TrainingInstance(object):
 
   def __str__(self):
     s = ""
-    s += "tokens: %s\n" % (" ".join([str(x) for x in self.tokens]))
+    s += "tokens: %s\n" % (" ".join(
+        [str(x) for x in self.tokens]))
     s += "segment_ids: %s\n" % (" ".join([str(x) for x in self.segment_ids]))
     s += "is_random_next: %s\n" % self.is_random_next
     s += "masked_lm_positions: %s\n" % (" ".join(
         [str(x) for x in self.masked_lm_positions]))
-    s += "masked_lm_labels: %s\n" % (" ".join([str(x) for x in self.masked_lm_labels]))
+    s += "masked_lm_labels: %s\n" % (" ".join(
+        [str(x) for x in self.masked_lm_labels]))
     s += "\n"
     return s
 
   def __repr__(self):
     return self.__str__()
-  def __len__(self):
-    return len(self.tokens)
 
+def convert_tokens_to_ids(tokens):
+  output= []
+  for tokens in tokens:
+    if tokens == '[CLS]': output.append(-1)
+    elif tokens == '[MASK]': output.append(-2)
+    elif tokens == '[SEP]': output.append(-3)
+    else: output.append(tokens)
+  return output
 
 
 
 def write_instance_to_example_files(instances, max_seq_length,
                                     max_predictions_per_seq, output_files):
   """Create TF example files from `TrainingInstance`s."""
-  writers= np.load(output_files)
-  #writers = []
-  #for output_file in output_files:
-  #  writers.append(tf.python_io.TFRecordWriter(output_file))
+  writers = []
+  for output_file in output_files:
+    writers.append(tf.python_io.TFRecordWriter(output_file))
 
   writer_index = 0
 
   total_written = 0
   for (inst_index, instance) in enumerate(instances):
-    input_mask = [1] * len(instance)
-    segment_ids = instance.segment_ids
-    assert len(instance) <= max_seq_length
-    while len(instance) < max_seq_length:
-      #instance.append(0)
+    input_ids = convert_tokens_to_ids(instance.tokens)
+    input_mask = [1] * len(input_ids)
+    segment_ids = list(instance.segment_ids)
+    assert len(input_ids) <= max_seq_length
+
+    while len(input_ids) < max_seq_length:
+      input_ids.append(0)
       input_mask.append(0)
       segment_ids.append(0)
 
-    assert len(instance) == max_seq_length
+    assert len(input_ids) == max_seq_length
     assert len(input_mask) == max_seq_length
     assert len(segment_ids) == max_seq_length
 
     masked_lm_positions = list(instance.masked_lm_positions)
-    #masked_lm_ids = instance
-    masked_lm_weights = [1.0] * len(instance)
+    masked_lm_ids = instance.masked_lm_labels
+    masked_lm_weights = [1.0] * len(masked_lm_ids)
 
     while len(masked_lm_positions) < max_predictions_per_seq:
       masked_lm_positions.append(0)
-      #masked_lm_ids.append(0)
+      masked_lm_ids.append(0)
       masked_lm_weights.append(0.0)
 
     next_sentence_label = 1 if instance.is_random_next else 0
 
     features = collections.OrderedDict()
-    features["input_ids"] = create_int_feature(instance)
+    features["input_ids"] = create_int_feature(input_ids)
     features["input_mask"] = create_int_feature(input_mask)
     features["segment_ids"] = create_int_feature(segment_ids)
     features["masked_lm_positions"] = create_int_feature(masked_lm_positions)
-    #features["masked_lm_ids"] = create_int_feature(masked_lm_ids)
+    features["masked_lm_ids"] = create_int_feature(masked_lm_ids)
     features["masked_lm_weights"] = create_float_feature(masked_lm_weights)
     features["next_sentence_labels"] = create_int_feature([next_sentence_label])
 
@@ -148,7 +154,8 @@ def write_instance_to_example_files(instances, max_seq_length,
 
     if inst_index < 20:
       tf.logging.info("*** Example ***")
-      tf.logging.info("tokens: %s" % " ".join(instance))
+      tf.logging.info("tokens: %s" % " ".join(
+          [str(x) for x in instance.tokens]))
 
       for feature_name in features.keys():
         feature = features[feature_name]
@@ -180,9 +187,8 @@ def create_training_instances(input_files, max_seq_length,
                               dupe_factor, short_seq_prob, masked_lm_prob,
                               max_predictions_per_seq, rng):
   """Create `TrainingInstance`s from raw text."""
-  all_documents = np.load(input_files)
+  all_documents= np.load(input_files)
 
-  # Remove empty documents
   rng.shuffle(all_documents)
 
   instances = []
@@ -192,6 +198,7 @@ def create_training_instances(input_files, max_seq_length,
           create_instances_from_document(
               all_documents, document_index, max_seq_length, short_seq_prob,
               masked_lm_prob, max_predictions_per_seq, rng))
+
   rng.shuffle(instances)
   return instances
 
@@ -201,8 +208,9 @@ def create_instances_from_document(
     masked_lm_prob, max_predictions_per_seq, rng):
   """Creates `TrainingInstance`s for a single document."""
   document = all_documents[document_index]
-  max_num_tokens = max_seq_length - 3
 
+  # Account for [CLS], [SEP], [SEP]
+  max_num_tokens = max_seq_length - 3
   target_seq_length = max_num_tokens
   if rng.random() < short_seq_prob:
     target_seq_length = rng.randint(2, max_num_tokens)
@@ -211,27 +219,26 @@ def create_instances_from_document(
   current_chunk = []
   current_length = 0
   i = 0
-  while i < len(document):
+  while i < np.size(document,0):
     segment = document[i]
     current_chunk.append(segment)
     current_length += len(str(segment))
-    if i == len(document) - 1 or current_length >= target_seq_length:
+    if i == i < np.size(document,0) - 1 or current_length >= target_seq_length:
       if current_chunk:
-
+        # `a_end` is how many segments from `current_chunk` go into the `A`
+        # (first) sentence.
         a_end = 1
         if len(current_chunk) >= 2:
           a_end = rng.randint(1, len(current_chunk) - 1)
 
-        tokens_a = []
-        for j in range(a_end):
-          tokens_a.append(current_chunk[j])
+        tokens_a = current_chunk
 
         tokens_b = []
-
+        # Random next
+        is_random_next = False
         if len(current_chunk) == 1 or rng.random() < 0.5:
           is_random_next = True
           target_b_length = target_seq_length - len(tokens_a)
-
           for _ in range(10):
             random_document_index = rng.randint(0, len(all_documents) - 1)
             if random_document_index != document_index:
@@ -243,14 +250,14 @@ def create_instances_from_document(
             tokens_b.append(random_document[j])
             if len(tokens_b) >= target_b_length:
               break
-
           num_unused_segments = len(current_chunk) - a_end
           i -= num_unused_segments
-
         else:
           is_random_next = False
           for j in range(a_end, len(current_chunk)):
             tokens_b.append(current_chunk[j])
+        truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng)
+
         assert len(tokens_a) >= 1
         assert len(tokens_b) >= 1
 
@@ -287,6 +294,7 @@ def create_instances_from_document(
 
   return instances
 
+
 MaskedLmInstance = collections.namedtuple("MaskedLmInstance",
                                           ["index", "label"])
 
@@ -299,6 +307,15 @@ def create_masked_lm_predictions(tokens, masked_lm_prob,
   for (i, token) in enumerate(tokens):
     if token == "[CLS]" or token == "[SEP]":
       continue
+    # Whole Word Masking means that if we mask all of the wordpieces
+    # corresponding to an original word. When a word has been split into
+    # WordPieces, the first token does not have any marker and any subsequence
+    # tokens are prefixed with ##. So whenever we see the ## token, we
+    # append it to the previous set of word indexes.
+    #
+    # Note that Whole Word Masking does *not* change the training code
+    # at all -- we still predict each WordPiece independently, softmaxed
+    # over the entire vocabulary.
     if (FLAGS.do_whole_word_mask and len(cand_indexes) >= 1 and
         token.startswith("##")):
       cand_indexes[-1].append(i)
@@ -358,11 +375,26 @@ def create_masked_lm_predictions(tokens, masked_lm_prob,
   return (output_tokens, masked_lm_positions, masked_lm_labels)
 
 
+def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
+  """Truncates a pair of sequences to a maximum sequence length."""
+  while True:
+    total_length = len(tokens_a) + len(tokens_b)
+    if total_length <= max_num_tokens:
+      break
+
+    trunc_tokens = tokens_a if len(tokens_a) > len(tokens_b) else tokens_b
+    assert len(trunc_tokens) >= 1
+
+    # We want to sometimes truncate from the front and sometimes from the
+    # back to add more randomness and avoid biases.
+    if rng.random() < 0.5:
+      del trunc_tokens[0]
+    else:
+      trunc_tokens.pop()
+
+
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
-
-  tf.logging.info("*** Reading from input files ***")
-  tf.logging.info("  %s", FLAGS.input_file)
 
   rng = random.Random(FLAGS.random_seed)
   instances = create_training_instances(
@@ -370,12 +402,13 @@ def main(_):
       FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
       rng)
 
+  output_files = FLAGS.output_file.split(",")
   tf.logging.info("*** Writing to output files ***")
-  tf.logging.info("  %s", FLAGS.output_file)
+  for output_file in output_files:
+    tf.logging.info("  %s", output_file)
 
   write_instance_to_example_files(instances, FLAGS.max_seq_length,
-                                  FLAGS.max_predictions_per_seq, FLAGS.output_file)
-  print(' ')
+                                  FLAGS.max_predictions_per_seq, output_files)
 
 
 if __name__ == "__main__":
