@@ -31,17 +31,8 @@ flags.DEFINE_string("input_file", './X_train.npy',
                     "Input raw text file (or comma-separated list of files).")
 
 flags.DEFINE_string(
-    "output_file", './Y_train.npy',
+    "output_file", './X_train_out.tfrecord',
     "Output TF example file (or comma-separated list of files).")
-
-flags.DEFINE_bool(
-    "do_lower_case", True,
-    "Whether to lower case the input text. Should be True for uncased "
-    "models and False for cased models.")
-
-flags.DEFINE_bool(
-    "do_whole_word_mask", False,
-    "Whether to use whole word masking rather than per-WordPiece masking.")
 
 flags.DEFINE_integer("max_seq_length", 128, "Maximum sequence length.")
 
@@ -316,8 +307,7 @@ def create_masked_lm_predictions(tokens, masked_lm_prob,
     # Note that Whole Word Masking does *not* change the training code
     # at all -- we still predict each WordPiece independently, softmaxed
     # over the entire vocabulary.
-    if (FLAGS.do_whole_word_mask and len(cand_indexes) >= 1 and
-        token.startswith("##")):
+    if len(cand_indexes) >= 1 :
       cand_indexes[-1].append(i)
     else:
       cand_indexes.append([i])
