@@ -83,9 +83,9 @@ class TrainingInstance(object):
 def convert_tokens_to_ids(tokens):
   output= []
   for tokens in tokens:
-    if tokens == '[CLS]': output.append(-1)
-    elif tokens == '[MASK]': output.append(-2)
-    elif tokens == '[SEP]': output.append(-3)
+    if tokens == '[CLS]': output.append(1)
+    elif tokens == '[MASK]': output.append(2)
+    elif tokens == '[SEP]': output.append(3)
     else: output.append(tokens)
   return output
 
